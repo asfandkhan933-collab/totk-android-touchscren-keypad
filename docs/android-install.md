@@ -240,6 +240,9 @@ own Turnip build, open the app's *Game data → Graphics driver* and pick its Ad
 `libraryName` and supplies the displayed name; without metadata, a zip must contain exactly one `.so`.
 Only that library is installed, and a refused import leaves your current driver unchanged. Libraries are limited to
 128 MiB, metadata to 64 KiB and archives to 256 entries / 160 MiB. *Use the bundled driver* goes back to the bundled one.
+An APK built without `--turnip` carries no driver: *Game data → Graphics driver* then reads "None yet", and the game needs a
+Turnip `.zip` or `.so` added there before it will start (the system driver is for testing only, below). Removing a custom
+driver in such a build leaves no driver, so add one again.
 `TOTK_VK_DRIVER=system` in `totk.env` there selects the system driver instead; no current Qualcomm system driver
 passes the game's startup check, so that is for testing only.
 

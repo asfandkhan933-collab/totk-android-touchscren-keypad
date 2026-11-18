@@ -1754,6 +1754,11 @@ enum { SW_A = 0, SW_B, SW_X, SW_Y, SW_LS, SW_RS, SW_L, SW_R, SW_ZL, SW_ZR, SW_PL
 static pthread_mutex_t g_pad_mu = PTHREAD_MUTEX_INITIALIZER;
 static uint64_t g_keys, g_hat, g_trig, g_edges;   /* buttons from key events, from the hat axes, from trigger axes; presses since the last read */
 static int32_t g_axes[4];
+/* On-screen touch controls (Java com.aure.totk.touch): a second state merged with the physical pad, as runtime/gamepad.m does on iOS.
+   Buttons are OR-ed (a tap shorter than one read is latched as a press), each stick axis takes the stronger value. Under g_pad_mu. */
+static uint64_t g_touch_keys;
+static int32_t g_touch_axes[4];
+static int g_touch_seen;
 static int g_pad_seen;
 static overlay_chord g_chord;   /* Minus + R live overlay shortcut (overlay_chord.h); under g_pad_mu */
 static uint64_t mono_ns(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return (uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec; }
@@ -1857,6 +1862,19 @@ static int handle_input(AInputEvent *ev) {
     }
     return 0;
 }
+static int32_t stronger_axis(int32_t a, int32_t b) { return (b < 0 ? -b : b) > (a < 0 ? -a : a) ? b : a; }
+/* Java com.aure.totk.touch.TouchOverlay: the whole touch state, each time it changes. Buttons use the SW_* numbering above;
+   sticks are -32767..32767 with up positive (the Switch's convention, no inversion needed). */
+void runtime_android_touch_pad(JNIEnv *env, jclass cls, jlong buttons, jint lx, jint ly, jint rx, jint ry) {
+    (void)env; (void)cls;
+    uint64_t keys = (uint64_t)buttons & 0xFFFFull;
+    pthread_mutex_lock(&g_pad_mu);
+    g_edges |= keys & ~g_touch_keys;   /* a tap shorter than one game read is still seen once */
+    g_touch_keys = keys;
+    g_touch_axes[0] = lx; g_touch_axes[1] = ly; g_touch_axes[2] = rx; g_touch_axes[3] = ry;
+    g_touch_seen = 1;
+    pthread_mutex_unlock(&g_pad_mu);
+}
 void runtime_gamepad_start(void) {}
 void runtime_gamepad_clear(void) {
     pthread_mutex_lock(&g_pad_mu);
@@ -1869,9 +1887,10 @@ void runtime_gamepad_read(RuntimeGamepadState *out) {
     chord_minus_locked(timed);
     if (timed && chord_log())   /* rare (once per lone Minus); the diagnostic accepts printing under the pad lock */
         fprintf(stderr, "[chord] pad read: %s\n", timed & OVERLAY_CHORD_MINUS_DOWN ? "deliver late: 150 ms passed without R" : "tap replay ends (minus released)");
-    out->buttons = g_keys | g_hat | g_trig | g_edges; g_edges = 0;   /* a press shorter than one read still reaches the game */
-    out->lx = g_axes[0]; out->ly = g_axes[1]; out->rx = g_axes[2]; out->ry = g_axes[3];
-    out->connected = g_pad_seen;
+    out->buttons = g_keys | g_hat | g_trig | g_edges | g_touch_keys; g_edges = 0;   /* a press shorter than one read still reaches the game */
+    out->lx = stronger_axis(g_axes[0], g_touch_axes[0]); out->ly = stronger_axis(g_axes[1], g_touch_axes[1]);
+    out->rx = stronger_axis(g_axes[2], g_touch_axes[2]); out->ry = stronger_axis(g_axes[3], g_touch_axes[3]);
+    out->connected = g_pad_seen || g_touch_seen;
     pthread_mutex_unlock(&g_pad_mu);
 }
 int runtime_front_request_close(void) {

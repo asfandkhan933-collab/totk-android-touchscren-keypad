@@ -54,6 +54,7 @@ final class Strings {
             + "screen. Build shaders, then start the game.";
     static final String SECOND_READY = "Second screen ready";
     static final String DRIVER_BUNDLED_SHORT = "Bundled Turnip driver";
+    static final String DRIVER_NONE_SHORT = "No GPU driver yet: add one in Game data";
     static final String DRIVER_CUSTOM_SHORT = "Custom driver · ";
     static String shadersReady(int count) { return String.format(Locale.US, "%,d shaders ready", count); }
     static String dataSummary(String size, boolean secondScreen, boolean companion, boolean artOutdated, boolean shaders) {
@@ -305,6 +306,7 @@ final class Strings {
     static final String DRIVER_RESET_ROW = "Use the bundled driver";
     static final String DRIVER_RESET_HINT = "Removes the custom driver file";
     static final String DRIVER_BUNDLED = "Bundled";
+    static final String DRIVER_NONE = "None yet: pick a Turnip .zip or .so";
     static final String DRIVER_BAD = "That file is not a Vulkan driver: pick a Turnip .zip (AdrenoTools) or its .so (64-bit ARM).";
     static final String DRIVER_ZIP_BAD = "That zip has no usable driver. Its meta.json must name an existing libraryName, or it must "
             + "contain exactly one .so (64-bit ARM, up to 128 MiB; at most 256 entries).";

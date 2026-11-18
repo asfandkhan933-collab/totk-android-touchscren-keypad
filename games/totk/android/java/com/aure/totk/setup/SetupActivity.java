@@ -1156,7 +1156,8 @@ public final class SetupActivity extends Activity implements SetupService.Listen
         h2.setLetterSpacing(.28f);
         menu.addView(h2, Widgets.margins(Widgets.size(-1, -2), 6, 6, 0, 22));
         File driver = gameFile("driver.so");
-        String driverText = driver.isFile() ? Strings.DRIVER_CUSTOM_SHORT + Inputs.prefs(this).getString("driverName", "driver.so") : Strings.DRIVER_BUNDLED_SHORT;
+        String driverText = driver.isFile() ? Strings.DRIVER_CUSTOM_SHORT + Inputs.prefs(this).getString("driverName", "driver.so")
+                : bundledDriver() ? Strings.DRIVER_BUNDLED_SHORT : Strings.DRIVER_NONE_SHORT;
         // six items: a little shorter than setup's welcome rows so they fit the same panel
         // With the data in a picked folder whose All files access was revoked, Start game is the fix: it opens the setting.
         Widgets.Row start;
@@ -1543,8 +1544,9 @@ public final class SetupActivity extends Activity implements SetupService.Listen
         File driver = gameFile("driver.so");
         String driverName = Inputs.prefs(this).getString("driverName", "driver.so");
         Widgets.Row driverRow = dataRow(list, "driver", Strings.DRIVER, Strings.DRIVER_HINT,
-                driver.isFile() ? Strings.DRIVER_CUSTOM_SHORT + driverName + " · " + Strings.bytes(driver.length()) : Strings.DRIVER_BUNDLED,
-                driver.isFile() ? Theme.AMBER : Theme.ZONAI, v -> pickDriver());
+                driver.isFile() ? Strings.DRIVER_CUSTOM_SHORT + driverName + " · " + Strings.bytes(driver.length())
+                        : bundledDriver() ? Strings.DRIVER_BUNDLED : Strings.DRIVER_NONE,
+                driver.isFile() ? Theme.AMBER : bundledDriver() ? Theme.ZONAI : Theme.AMBER, v -> pickDriver());
         Widgets.Row reset = dataRow(list, "driver-reset", Strings.DRIVER_RESET_ROW, Strings.DRIVER_RESET_HINT, "", Theme.TEXT3, v -> resetDriver());
         driverRow.dimmed(missing);
         reset.dimmed(missing || !driver.isFile());
@@ -1621,6 +1623,8 @@ public final class SetupActivity extends Activity implements SetupService.Listen
         render();
     }
 
+    /** A build made without --turnip carries no libtotk_turnip.so; the player then adds a driver in Game data. */
+    private boolean bundledDriver() { return new File(getApplicationInfo().nativeLibraryDir, "libtotk_turnip.so").isFile(); }
     /** Copy a user-chosen Turnip build to <game>/driver.so (the runtime prefers it over the bundled libtotk_turnip.so). */
     private void installDriver(Uri uri) {
         if (!needGameClosed("Changing the driver", () -> installDriver(uri))) return;
