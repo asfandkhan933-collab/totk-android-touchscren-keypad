@@ -39,6 +39,11 @@ jobs:
           sudo apt-get install -y cmake make git rsync clang zlib1g-dev ninja-build
           python -m pip install cryptography==50.0.2
 
+      - name: Use .NET 10 (the runner also has a newer one, which the translator build refuses)
+        run: |
+          echo '{"sdk":{"version":"10.0.100","rollForward":"latestFeature"}}' > global.json
+          dotnet --version
+
       - name: Touch pad logic checks
         run: sh games/totk/tests/touch/run.sh
 
