@@ -15,6 +15,7 @@ import com.aure.totk.companion.DisplayClass;
 import com.aure.totk.companion.PresentationController;
 import com.aure.totk.setup.SetupActivity;   // compile-time constants only: the game process never loads setup classes
 import com.aure.totk.setup.SaveMirror;
+import com.aure.totk.touch.TouchOverlay;
 import java.nio.charset.StandardCharsets;
 
 /** The game remains a NativeActivity; only eligible external displays get a Java UI.
@@ -53,6 +54,10 @@ public final class TotkActivity extends NativeActivity {
     private static native void nativeTextInputDone(long serial, byte[] utf8);
     private static native void nativeGameFocus(boolean focused, boolean singleDisplay);
     private static native void nativeGameInputFocus(boolean top);
+    /** runtime/frontend_android.c: the on-screen pad's state, merged with any physical controller (buttons: bit n = Switch button n). */
+    private static native void nativeTouchPad(long buttons, int lx, int ly, int rx, int ry);
+    /** The on-screen gamepad (package touch): its own window over the game, edited in game from its handle at the top. */
+    private TouchOverlay touch;
 
     /** runtime/frontend_android.c, on this (the UI) thread: the game asks for text (nn::swkbd). TextEntry answers exactly
      * once: the UTF-8 text, or null when the player cancelled. */
@@ -149,6 +154,7 @@ public final class TotkActivity extends NativeActivity {
         // The companion art is generated on the device by the optional setup stage; without it the companion stays off.
         if (CompanionNative.isEnabled() && AssetStore.available(this)) companion = new PresentationController(this, new CompanionNative());
         saves = SaveMirror.Watcher.start(this);
+        touch = new TouchOverlay(this, TotkActivity::nativeTouchPad);
         int given = nativeFeedbackEnabled();   // what start_game gave the game (TOTK_RUMBLE / TOTK_GYRO and the hardware)
         if (given != 0 && !isFinishing()) feedback = new GameFeedback(this, given);
         if (!updateChecked) {
@@ -186,11 +192,13 @@ public final class TotkActivity extends NativeActivity {
         // Moving a task with the menu on top must not bring its background game back over the menu.
         if (resumed) ensureMainDisplay();
         if (companion != null && getDisplay() != null) companion.onDisplayChanged(getDisplay().getDisplayId());
+        if (touch != null) touch.onConfigurationChanged();   // folded <-> unfolded: the other screen's layout
     }
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
         ensureMainDisplay();
+        if (touch != null) touch.show();
         GameFeedback f = feedback;
         if (f != null) f.resume();
         showUpdate();
@@ -215,6 +223,7 @@ public final class TotkActivity extends NativeActivity {
     }
     @Override protected void onPause() {
         resumed = false;
+        if (touch != null) touch.hide();   // lifts every finger the pad holds, then removes its window
         GameFeedback f = feedback;
         if (f != null) f.pause();   // no motion in the background, and no motor left running
         super.onPause();
@@ -226,6 +235,7 @@ public final class TotkActivity extends NativeActivity {
     }
     @Override protected void onDestroy() {
         updatePresentPrerotate(0);
+        if (touch != null) { touch.close(); touch = null; }
         if (companion != null) { companion.close(); companion = null; }
         if (saves != null) { saves.close(1500); saves = null; }
         if (feedback != null) { feedback.close(); feedback = null; }

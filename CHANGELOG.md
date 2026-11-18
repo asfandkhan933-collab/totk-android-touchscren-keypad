@@ -5,6 +5,18 @@ the game version it runs is shown separately. versionCode = major × 10000 + min
 
 ## Unreleased
 
+### Build
+- `build_release.py --turnip` is optional. Without it the APK has no bundled GPU driver, and the menu's *Game data → Graphics
+  driver* row reads "None yet" until the player adds a Turnip `.zip` or `.so` there.
+
+### Controls
+- Add an on-screen touch gamepad: two sticks, D-pad, A/B/X/Y, L/R/ZL/ZR and +/− (L3/R3 are in the editor, hidden by default).
+  It is a window of its own over the game, merged with any physical controller, so a real pad still works alongside it.
+  Tap the small handle at the top to edit in the game: move, resize (pinch or Smaller/Larger), hide or show, remap any
+  control to another Switch button, set the see-through level, swap A and B, save and reuse named presets, or reset.
+  The folded (cover) and unfolded (inner) screens of a foldable each keep their own layout; the window's shape picks it.
+  Docs: [docs/touch-controls.md](docs/touch-controls.md).
+
 ### Developer tools
 - Add enabled-only `TOTK_WB_ALIAS=1` path coverage: cumulative operations/bytes by landing, report/event store
   and publication, separated into alias and fallback reasons at periodic memory reports, Android pause and normal exit.

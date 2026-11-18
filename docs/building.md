@@ -19,7 +19,8 @@ python3 games/totk/android/build_release.py --ndk <Android NDK r28> --turnip <Tu
   variable named by `--key-pass-env`, never on the command line. Every later release must be signed with the same key,
   or Android refuses the update. Release APKs of this project are signed with one release key (certificate SHA-256
   `a9e7a2a9fad6fdaede18c45a458e4555c0904658c9d7f4b74a73d9c83b67e2bf`).
-- **Turnip**: the only prebuilt binary in the APK besides the open fonts. Its reproducible recipe (Mesa at a pinned
+- **Turnip**: optional. Leave out `--turnip` to build an APK with no GPU driver; the player then adds one in the app
+  (*Game data → Graphics driver*, [android-install.md](android-install.md#drivers)). With it, it is the only prebuilt binary in the APK besides the open fonts. Its reproducible recipe (Mesa at a pinned
   commit plus the patches in this repository) is [games/totk/android/turnip/](../games/totk/android/turnip/README.md);
   the build accepts only the pinned driver (sha256 `9b87afeb3d8d30c6a0ad5aab3e0703bc1500e0321e9f17a922106fa556389ec6`).
 - **Shader translator**: [games/totk/tools/totk_xlate/](../games/totk/tools/totk_xlate/) (Ryujinx's shader translator,

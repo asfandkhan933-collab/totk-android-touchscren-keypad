@@ -1,0 +1,79 @@
+name: Build APK
+
+# Run by hand: Actions tab -> Build APK -> Run workflow. About 30-60 minutes. The finished APK is attached to the run
+# (Artifacts at the bottom of the run's page). It has no bundled GPU driver: add a Turnip .zip or .so in the app
+# afterwards (Game data -> Graphics driver). The APK is signed with a throwaway key made fresh in each run, so APKs from
+# different runs cannot update each other: uninstall the old one first (export your saves from it first).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'ga'
+
+      - name: Build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make git rsync clang zlib1g-dev ninja-build
+          python -m pip install cryptography==50.0.2
+
+      - name: Touch pad logic checks
+        run: sh games/totk/tests/touch/run.sh
+
+      - name: Android SDK and NDK r28
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "SDK=$SDK" >> "$GITHUB_ENV"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "platforms;android-34" "build-tools;34.0.0"
+          ls "$SDK/ndk" "$SDK/platforms" "$SDK/build-tools"
+
+      - name: Throwaway signing key
+        run: |
+          openssl req -x509 -newkey rsa:3072 -nodes -keyout k.pem -out c.pem -days 3650 -subj "/CN=TotK Native personal build"
+          cat k.pem c.pem > "$RUNNER_TEMP/release.pem"
+          rm -f k.pem c.pem
+
+      - name: Build the APK (no bundled GPU driver)
+        run: |
+          python games/totk/android/build_release.py \
+            --ndk "$SDK/ndk/28.2.13676358" --android-sdk "$SDK" \
+            --key "$RUNNER_TEMP/release.pem" -o "$GITHUB_WORKSPACE/totk-native.apk"
+          sha256sum totk-native.apk | tee totk-native.apk.sha256
+
+      - name: Show the end of the build logs if it failed
+        if: failure()
+        run: |
+          for f in games/totk/build/release/logs/*.log; do
+            [ -f "$f" ] && { echo "=== $f"; tail -n 40 "$f"; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: totk-native-apk
+          path: |
+            totk-native.apk
+            totk-native.apk.sha256
+          if-no-files-found: error

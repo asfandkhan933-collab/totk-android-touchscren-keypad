@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the public TotK Native APK from this repository alone: no game files, no keys, nothing derived from them.
 
-    python3 games/totk/android/build_release.py --ndk <android-ndk> --turnip <driver.so> --key <release.pem>
+    python3 games/totk/android/build_release.py --ndk <android-ndk> [--turnip <driver.so>] --key <release.pem>
                                                 [--key-pass-env VAR] [--work DIR] [-o totk-native.apk]
                                                 [--translator <android-arm64 totk_xlate>] [--android-sdk SDK]
                                                 [--version-code N] [--version-name X]   (default 1.0.0 / 10000)
@@ -14,7 +14,10 @@ What goes in (all built here, or fetched at pinned sources, except the two prebu
     pinned commits by android/setup/*/deps.py);
   - libtotk_xlate.so, the shader translator (NativeAOT: published with tools/totk_xlate/publish_native.sh --android, or
     the prebuilt given by --translator);
-  - libtotk_turnip.so: the pinned Mesa Turnip build given by --turnip, refused unless its SHA-256 is the pinned one;
+  - libtotk_turnip.so: the pinned Mesa Turnip build given by --turnip, refused unless its SHA-256 is the pinned one.
+    --turnip is optional: without it the APK carries no GPU driver, and the player adds one afterwards in the app
+    (Game data -> Graphics driver: an AdrenoTools .zip or a 64-bit ARM .so). Until one is added the game uses the
+    system driver, which may not run it (docs/android-install.md, Drivers);
   - classes.dex (android/java via apk/build_dex.py), the launcher icon (android/app-assets/icon), the open fonts
     (android/app-assets/fonts) and the licence texts of everything shipped (assets/licenses/), the identifier-only
     pipeline key list (assets/pso_keys.bin from assets/pso_keys.tsv).
@@ -58,7 +61,8 @@ def parse_args(argv):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--audit', type=Path, metavar='APK', help='only audit an existing APK and exit')
     ap.add_argument('--ndk', type=Path, default=os.environ.get('ANDROID_NDK_HOME') or os.environ.get('ANDROID_NDK_ROOT'))
-    ap.add_argument('--turnip', type=Path, help=f'the pinned Mesa Turnip driver.so (sha256 {TURNIP_SHA256})')
+    ap.add_argument('--turnip', type=Path, help=f'the pinned Mesa Turnip driver.so (sha256 {TURNIP_SHA256}); '
+                    'leave it out to build without a bundled driver and add one later in the app (Game data -> Graphics driver)')
     ap.add_argument('--key', type=Path, help='release signing key + certificate (PEM, or PKCS#12 .p12/.pfx); never generated')
     ap.add_argument('--key-pass-env', metavar='VAR', help='environment variable holding the key password')
     ap.add_argument('--work', type=Path, default=TOTK / 'build/release', help='work folder (default games/totk/build/release)')
@@ -70,7 +74,7 @@ def parse_args(argv):
     ap.add_argument('--jobs', type=int, default=os.cpu_count() or 4)
     args = ap.parse_args(argv)
     if not args.audit:
-        missing = [n for n in ('ndk', 'turnip', 'key') if not getattr(args, n)]
+        missing = [n for n in ('ndk', 'key') if not getattr(args, n)]
         if missing:
             ap.error('needs ' + ', '.join('--' + n for n in missing))
     return args
@@ -408,7 +412,9 @@ def main(argv):
     key = args.key.expanduser().resolve()
     if not key.is_file():
         raise BuildError(f'no signing key at {key} (this build never makes one)')
-    turnip = check_turnip(args.turnip)
+    turnip = check_turnip(args.turnip) if args.turnip else None
+    if turnip is None:
+        say('no --turnip: building without a bundled GPU driver; add one in the app (Game data -> Graphics driver)')
     work = args.work.expanduser().resolve()
     logs = work / 'logs'
     logs.mkdir(parents=True, exist_ok=True)
