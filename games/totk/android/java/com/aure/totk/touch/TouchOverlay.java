@@ -44,7 +44,7 @@ public final class TouchOverlay {
             activity.getWindowManager().addView(view, params(token, true));
             shown = true;
             view.setScreen(screenWidth(), screenHeight());
-            if (!view.isEnabled()) setFull(false);   // controls off: only the small handle takes touches
+            if (!view.padOn()) setFull(false);   // controls off: only the small handle takes touches
         } catch (RuntimeException failed) {         // never let the pad stop the game from starting
             Log.w("TotkTouch", "could not show the touch controls", failed);
         }

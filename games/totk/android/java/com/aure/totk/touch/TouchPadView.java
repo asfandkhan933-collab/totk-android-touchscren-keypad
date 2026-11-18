@@ -71,7 +71,7 @@ final class TouchPadView extends View {
         });
         pushLayout();
     }
-    boolean isEnabled() { return enabled; }
+    boolean padOn() { return enabled; }
 
     // ---- state ----
     /** The window is now this size: pick the folded or unfolded layout for it. */
